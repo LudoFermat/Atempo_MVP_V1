@@ -1,0 +1,19 @@
+{
+  "name": "atempo-mvp1",
+  "private": true,
+  "packageManager": "pnpm@9.12.3",
+  "scripts": {
+    "dev": "pnpm --filter @atempo/shared build && pnpm -r --parallel --filter ./apps/* dev",
+    "dev:api": "pnpm --filter @atempo/shared build && pnpm --filter @atempo/api dev",
+    "dev:web": "pnpm --filter @atempo/shared build && pnpm --filter @atempo/web dev",
+    "dev:mobile": "pnpm --filter @atempo/shared build && pnpm --filter @atempo/mobile start",
+    "build": "pnpm --filter @atempo/shared build && pnpm --filter @atempo/api build && pnpm --filter @atempo/web build",
+    "test": "pnpm --filter @atempo/shared build && pnpm --filter @atempo/api test",
+    "test:e2e": "pnpm --filter @atempo/shared build && pnpm --filter @atempo/api test:e2e",
+    "migrate": "pnpm --filter @atempo/api prisma:migrate",
+    "seed": "pnpm --filter @atempo/api prisma:seed"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}

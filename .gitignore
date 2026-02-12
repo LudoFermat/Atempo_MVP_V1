@@ -1,0 +1,12 @@
+node_modules
+.pnpm-store
+.env
+.env.local
+.next
+dist
+coverage
+.expo
+.expo-shared
+.DS_Store
+apps/api/prisma/migrations
+apps/api/prisma/dev.db
