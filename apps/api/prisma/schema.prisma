@@ -1,0 +1,113 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ATHLETE
+  COACH
+  PSY_ATEMPO
+  PSY_CLUB
+}
+
+enum NoteVisibility {
+  INTERNAL
+  COACH_VISIBLE
+}
+
+enum ChatSender {
+  ATHLETE
+  AI
+}
+
+model User {
+  id           String         @id @default(uuid())
+  email        String         @unique
+  passwordHash String
+  role         Role
+  createdAt    DateTime       @default(now())
+
+  athleteProfile AthleteProfile?
+  staffProfile   StaffProfile?
+
+  athleteCheckins EmotionCheckin[] @relation("AthleteCheckins")
+  athleteNotes    Note[]           @relation("AthleteNotes")
+  authoredNotes   Note[]           @relation("AuthorNotes")
+  chatMessages    ChatMessage[]    @relation("AthleteChatMessages")
+}
+
+model Club {
+  id        String           @id @default(uuid())
+  name      String
+  athletes  AthleteProfile[]
+  staff     StaffProfile[]
+}
+
+model AthleteProfile {
+  userId    String   @id
+  clubId    String
+  name      String
+  sport     String
+  goalText  String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@index([clubId])
+}
+
+model StaffProfile {
+  userId    String   @id
+  clubId    String
+  name      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@index([clubId])
+}
+
+model EmotionCheckin {
+  id            String   @id @default(uuid())
+  athleteUserId String
+  createdAt     DateTime @default(now())
+  moodScore     Int
+  stressScore   Int
+  noteText      String?
+
+  athlete User @relation("AthleteCheckins", fields: [athleteUserId], references: [id], onDelete: Cascade)
+
+  @@index([athleteUserId, createdAt])
+}
+
+model Note {
+  id            String         @id @default(uuid())
+  athleteUserId String
+  authorUserId  String
+  visibility    NoteVisibility
+  text          String
+  createdAt     DateTime       @default(now())
+
+  athlete User @relation("AthleteNotes", fields: [athleteUserId], references: [id], onDelete: Cascade)
+  author  User @relation("AuthorNotes", fields: [authorUserId], references: [id], onDelete: Cascade)
+
+  @@index([athleteUserId, createdAt])
+}
+
+model ChatMessage {
+  id            String     @id @default(uuid())
+  athleteUserId String
+  sender        ChatSender
+  text          String
+  createdAt     DateTime   @default(now())
+
+  athlete User @relation("AthleteChatMessages", fields: [athleteUserId], references: [id], onDelete: Cascade)
+
+  @@index([athleteUserId, createdAt])
+}
