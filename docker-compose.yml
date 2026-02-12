@@ -1,0 +1,36 @@
+version: '3.9'
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: atempo
+    ports:
+      - '5432:5432'
+    volumes:
+      - atempo-postgres-data:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    depends_on:
+      - postgres
+    ports:
+      - '4000:4000'
+    environment:
+      PORT: 4000
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/atempo
+      JWT_ACCESS_SECRET: access-secret-dev
+      JWT_REFRESH_SECRET: refresh-secret-dev
+      JWT_ACCESS_EXPIRES_IN: 15m
+      JWT_REFRESH_EXPIRES_IN: 7d
+    command: >
+      sh -c "pnpm --filter @atempo/api prisma:push &&
+             pnpm --filter @atempo/api prisma:seed &&
+             pnpm --filter @atempo/api start"
+
+volumes:
+  atempo-postgres-data:
