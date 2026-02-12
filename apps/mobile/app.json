@@ -1,0 +1,9 @@
+{
+  "expo": {
+    "name": "Atempo Mobile MVP",
+    "slug": "atempo-mobile-mvp",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "assetBundlePatterns": ["**/*"]
+  }
+}
