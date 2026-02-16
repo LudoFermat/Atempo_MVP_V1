@@ -12,5 +12,5 @@
     "outDir": "./dist",
     "incremental": true
   },
-  "include": ["src", "test", "prisma/seed.ts"]
+  "include": ["src", "test"]
 }

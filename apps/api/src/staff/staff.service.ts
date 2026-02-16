@@ -4,6 +4,24 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateStaffNoteDto } from './dto';
 import { ExportService } from './export.service';
 
+type NoteRow = {
+  id: string;
+  athleteUserId: string;
+  authorUserId: string;
+  visibility: string;
+  text: string;
+  createdAt: Date;
+};
+
+type CheckinRow = {
+  id: string;
+  athleteUserId: string;
+  moodScore: number;
+  stressScore: number;
+  noteText: string | null;
+  createdAt: Date;
+};
+
 @Injectable()
 export class StaffService {
   constructor(
@@ -11,7 +29,7 @@ export class StaffService {
     private readonly exportService: ExportService
   ) {}
 
-  filterVisibleNotes<T extends { visibility: string }>(role: Role, notes: T[]) {
+  filterVisibleNotes<T extends { visibility: string }>(role: Role, notes: T[]): T[] {
     if (role === Role.COACH) {
       return notes.filter((note) => note.visibility === NoteVisibility.COACH_VISIBLE);
     }
@@ -74,8 +92,8 @@ export class StaffService {
     }
 
     const rows = await Promise.all(
-      athleteProfiles.map(async (athlete) => {
-        const [latestCheckin, checkins, notes] = await Promise.all([
+      athleteProfiles.map(async (athlete: { userId: string; name: string; sport: string; goalText: string }) => {
+        const [latestCheckin, rawCheckins, rawNotes] = await Promise.all([
           this.prisma.emotionCheckin.findFirst({
             where: { athleteUserId: athlete.userId },
             orderBy: { createdAt: 'desc' }
@@ -92,9 +110,11 @@ export class StaffService {
           })
         ]);
 
+        const checkins = rawCheckins as CheckinRow[];
+        const notes = rawNotes as NoteRow[];
         const visibleNotes = this.filterVisibleNotes(role, notes);
         const events = [
-          ...checkins.map((c) => ({
+          ...checkins.map((c: CheckinRow) => ({
             type: 'CHECKIN' as const,
             createdAt: c.createdAt,
             preview: `Mood ${c.moodScore}/10 Stress ${c.stressScore}/10`
@@ -127,7 +147,7 @@ export class StaffService {
   async getAthleteDetail(userId: string, role: Role, athleteUserId: string) {
     const athleteProfile = await this.assertClubAccess(userId, role, athleteUserId);
 
-    const [checkins, notes] = await Promise.all([
+    const [rawCheckins, rawNotes] = await Promise.all([
       this.prisma.emotionCheckin.findMany({
         where: { athleteUserId },
         orderBy: { createdAt: 'desc' }
@@ -138,6 +158,8 @@ export class StaffService {
       })
     ]);
 
+    const checkins = rawCheckins as CheckinRow[];
+    const notes = rawNotes as NoteRow[];
     const visibleNotes = this.filterVisibleNotes(role, notes);
 
     if (role === Role.COACH) {
