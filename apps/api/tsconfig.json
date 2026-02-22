@@ -10,7 +10,11 @@
     "target": "ES2021",
     "sourceMap": true,
     "outDir": "./dist",
-    "incremental": true
+    "incremental": true,
+    "paths": {
+      "@atempo/shared": ["packages/shared/dist"],
+      "@atempo/shared/*": ["packages/shared/dist/*"]
+    }
   },
   "include": ["src", "test"]
 }
