@@ -6,6 +6,16 @@ import { PrismaModule } from './prisma/prisma.module';
 import { StaffModule } from './staff/staff.module';
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), PrismaModule, AuthModule, AthleteModule, StaffModule]
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      // Support running scripts from the monorepo root and from apps/api.
+      envFilePath: ['apps/api/.env', '.env']
+    }),
+    PrismaModule,
+    AuthModule,
+    AthleteModule,
+    StaffModule
+  ]
 })
 export class AppModule {}

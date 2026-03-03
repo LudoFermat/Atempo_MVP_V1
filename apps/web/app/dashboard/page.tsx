@@ -20,11 +20,13 @@ export default function DashboardPage() {
   const router = useRouter();
   const [role, setRole] = useState<Role | null>(null);
   const [rows, setRows] = useState<DashboardRow[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const currentRole = getRole();
     if (!isStaffRole(currentRole)) {
-      router.push('/');
+      router.replace('/');
       return;
     }
 
@@ -33,15 +35,29 @@ export default function DashboardPage() {
   }, [router]);
 
   async function loadRows() {
-    const response = await apiFetch('/staff/athletes');
-    if (response.status === 401 || response.status === 403) {
-      clearSession();
-      router.push('/');
-      return;
-    }
+    setIsLoading(true);
+    setError(null);
 
-    const payload = await response.json();
-    setRows(payload);
+    try {
+      const response = await apiFetch('/staff/athletes');
+      if (response.status === 401 || response.status === 403) {
+        clearSession();
+        router.replace('/');
+        return;
+      }
+
+      if (!response.ok) {
+        setError('No se pudo cargar el dashboard.');
+        return;
+      }
+
+      const payload = await response.json();
+      setRows(payload);
+    } catch {
+      setError('No se pudo conectar con la API.');
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -62,7 +78,27 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded border bg-white">
+      {error ? (
+        <div className="rounded border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {error}
+          <button className="ml-3 underline" onClick={() => void loadRows()}>
+            Reintentar
+          </button>
+        </div>
+      ) : null}
+
+      {isLoading ? (
+        <div className="rounded border bg-white p-4 text-sm text-slate-600">Cargando atletas...</div>
+      ) : null}
+
+      {!isLoading && !error && rows.length === 0 ? (
+        <div className="rounded border bg-white p-4 text-sm text-slate-600">
+          No hay atletas disponibles para este rol/club.
+        </div>
+      ) : null}
+
+      {!isLoading && !error && rows.length > 0 ? (
+        <div className="overflow-x-auto rounded border bg-white">
         <table className="min-w-full text-left text-sm">
           <thead className="bg-slate-100">
             <tr>
@@ -99,7 +135,8 @@ export default function DashboardPage() {
             ))}
           </tbody>
         </table>
-      </div>
+        </div>
+      ) : null}
     </section>
   );
 }

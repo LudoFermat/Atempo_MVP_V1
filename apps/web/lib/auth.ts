@@ -1,6 +1,6 @@
 import { Role } from '@atempo/shared';
 
-type SessionData = {
+export type SessionData = {
   accessToken: string;
   refreshToken: string;
   user: {
@@ -33,6 +33,10 @@ export function clearSession() {
 
 export function getRole() {
   return getSession()?.user.role ?? null;
+}
+
+export function hasSession() {
+  return Boolean(getSession());
 }
 
 export function isStaffRole(role: Role | null) {

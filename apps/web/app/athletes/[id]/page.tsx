@@ -29,11 +29,16 @@ export default function AthleteDetailPage() {
   const [detail, setDetail] = useState<DetailPayload | null>(null);
   const [newNoteText, setNewNoteText] = useState('');
   const [visibility, setVisibility] = useState<NoteVisibility>(NoteVisibility.COACH_VISIBLE);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isSavingNote, setIsSavingNote] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const currentRole = getRole();
     if (!isStaffRole(currentRole)) {
-      router.push('/');
+      router.replace('/');
       return;
     }
 
@@ -43,16 +48,30 @@ export default function AthleteDetailPage() {
   }, [router, athleteId]);
 
   async function loadDetail() {
-    const response = await apiFetch(`/staff/athletes/${athleteId}`);
+    setIsLoading(true);
+    setError(null);
 
-    if (response.status === 401 || response.status === 403) {
-      clearSession();
-      router.push('/');
-      return;
+    try {
+      const response = await apiFetch(`/staff/athletes/${athleteId}`);
+
+      if (response.status === 401 || response.status === 403) {
+        clearSession();
+        router.replace('/');
+        return;
+      }
+
+      if (!response.ok) {
+        setError('No se pudo cargar el detalle del atleta.');
+        return;
+      }
+
+      const payload = await response.json();
+      setDetail(payload);
+    } catch {
+      setError('No se pudo conectar con la API.');
+    } finally {
+      setIsLoading(false);
     }
-
-    const payload = await response.json();
-    setDetail(payload);
   }
 
   const chartPoints = useMemo(() => {
@@ -93,40 +112,84 @@ export default function AthleteDetailPage() {
 
   async function submitNote(event: FormEvent) {
     event.preventDefault();
-
-    const response = await apiFetch(`/staff/athletes/${athleteId}/notes`, {
-      method: 'POST',
-      body: JSON.stringify({ text: newNoteText, visibility })
-    });
-
-    if (!response.ok) {
-      alert('No se pudo crear la nota');
+    if (isSavingNote) return;
+    if (!newNoteText.trim()) {
+      setActionMessage('La nota no puede estar vacia.');
       return;
     }
+    setActionMessage(null);
+    setIsSavingNote(true);
 
-    setNewNoteText('');
-    await loadDetail();
+    try {
+      const response = await apiFetch(`/staff/athletes/${athleteId}/notes`, {
+        method: 'POST',
+        body: JSON.stringify({ text: newNoteText.trim(), visibility })
+      });
+
+      if (!response.ok) {
+        setActionMessage('No se pudo crear la nota.');
+        return;
+      }
+
+      setNewNoteText('');
+      setActionMessage('Nota guardada.');
+      await loadDetail();
+    } catch {
+      setActionMessage('No se pudo conectar con la API.');
+    } finally {
+      setIsSavingNote(false);
+    }
   }
 
   async function exportCsv() {
-    const response = await apiFetch(`/staff/athletes/${athleteId}/export.csv`);
-    if (!response.ok) {
-      alert('No se pudo exportar');
-      return;
-    }
+    if (isExporting) return;
+    setActionMessage(null);
+    setIsExporting(true);
+    try {
+      const response = await apiFetch(`/staff/athletes/${athleteId}/export.csv`);
+      if (!response.ok) {
+        setActionMessage('No se pudo exportar el CSV.');
+        return;
+      }
 
-    const text = await response.text();
-    const blob = new Blob([text], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `athlete-${athleteId}-metrics.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+      const text = await response.text();
+      const blob = new Blob([text], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `athlete-${athleteId}-metrics.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setActionMessage('CSV exportado.');
+    } catch {
+      setActionMessage('No se pudo conectar con la API.');
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
+  if (isLoading) {
+    return <p>Cargando...</p>;
+  }
+
+  if (error) {
+    return (
+      <section className="space-y-4">
+        <div className="rounded border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
+        <div className="flex gap-3">
+          <button className="rounded border px-3 py-2 text-sm" onClick={() => void loadDetail()}>
+            Reintentar
+          </button>
+          <Link className="rounded border px-3 py-2 text-sm" href="/dashboard">
+            Volver
+          </Link>
+        </div>
+      </section>
+    );
   }
 
   if (!detail) {
-    return <p>Cargando...</p>;
+    return <p className="text-sm text-slate-600">No se encontro el atleta.</p>;
   }
 
   return (
@@ -152,8 +215,12 @@ export default function AthleteDetailPage() {
         <div className="mb-2 flex items-center justify-between">
           <p className="font-semibold">Notas</p>
           {role === Role.PSY_ATEMPO || role === Role.PSY_CLUB ? (
-            <button className="rounded border px-3 py-1 text-sm" onClick={exportCsv}>
-              Export CSV
+            <button
+              className="rounded border px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+              onClick={exportCsv}
+              disabled={isExporting}
+            >
+              {isExporting ? 'Exportando...' : 'Export CSV'}
             </button>
           ) : null}
         </div>
@@ -165,6 +232,7 @@ export default function AthleteDetailPage() {
             </li>
           ))}
         </ul>
+        {detail.notes.length === 0 ? <p className="text-sm text-slate-500">Sin notas visibles.</p> : null}
       </div>
 
       <form className="rounded border bg-white p-4" onSubmit={submitNote}>
@@ -187,10 +255,15 @@ export default function AthleteDetailPage() {
               </option>
             ))}
           </select>
-          <button className="rounded bg-brand-500 px-3 py-2 text-sm font-semibold text-white" type="submit">
-            Guardar nota
+          <button
+            className="rounded bg-brand-500 px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+            type="submit"
+            disabled={isSavingNote}
+          >
+            {isSavingNote ? 'Guardando...' : 'Guardar nota'}
           </button>
         </div>
+        {actionMessage ? <p className="mt-2 text-sm text-slate-600">{actionMessage}</p> : null}
       </form>
     </section>
   );

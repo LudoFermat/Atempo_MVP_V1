@@ -131,9 +131,17 @@ export default function App() {
       const meResponse = await fetch(`${apiBase}/auth/me`, {
         headers: { Authorization: `Bearer ${payload.accessToken}` }
       });
+
+      if (!meResponse.ok) {
+        Alert.alert('Error', 'No se pudo validar la sesion con la API');
+        return;
+      }
+
       const mePayload = await meResponse.json();
 
       setScreen(mePayload.profileStatus === 'NEEDS_ONBOARDING' ? 'ONBOARDING' : 'HOME');
+    } catch {
+      Alert.alert('Error', `No se pudo conectar con la API (${apiBase})`);
     } finally {
       setLoading(false);
     }
